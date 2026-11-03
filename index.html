@@ -374,7 +374,15 @@ var PK='iteco_bdd_pending_v1';
 function pendGet(){try{return JSON.parse(localStorage.getItem(PK)||'[]')}catch(e){return[]}}
 function pendSet(a){try{localStorage.setItem(PK,JSON.stringify(a))}catch(e){}}
 function pendDel(id){pendSet(pendGet().filter(function(x){return x.id!==id}))}
-function postOne(p){return fetch(CFG.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p)})}
+var LASTERR='';
+function postOne(p){
+  var body=JSON.stringify(p);
+  return fetch(CFG.url,{method:'POST',mode:'no-cors',redirect:'follow',credentials:'omit',headers:{'Content-Type':'text/plain;charset=utf-8'},body:body}).catch(function(err){
+    LASTERR=(err&&(err.name+': '+err.message))||String(err);
+    if(navigator.sendBeacon&&navigator.sendBeacon(CFG.url,new Blob([body],{type:'text/plain;charset=utf-8'})))return;
+    throw err;
+  });
+}
 function flushPending(){
   if(!CFG.url)return;
   pendGet().forEach(function(it){postOne(it.p).then(function(){pendDel(it.id)}).catch(function(){})});
@@ -393,7 +401,7 @@ function sendToRegistry(payload){
       st.textContent=REMOTE?'Результат передан инспектору.':'Результат отправлен в реестр. Проверьте, что строка появилась в таблице.';
     }).catch(function(){
       if(++n<4){setTimeout(go,3000*n);return}
-      st.textContent='Нет связи. Результат сохранён на этом устройстве и отправится автоматически, когда вы снова откроете страницу с интернетом.'+(REMOTE?'':' Распечатайте протокол.');
+      st.textContent=(LASTERR?'['+LASTERR+'] ':'')+'Нет связи. Результат сохранён на этом устройстве и отправится автоматически, когда вы снова откроете страницу с интернетом.'+(REMOTE?'':' Распечатайте протокол.');
       st.style.color='#b3261e';
     });
   })();
